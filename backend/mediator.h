@@ -2,6 +2,8 @@
 
 #pragma comment(lib, "Msimg32.lib")
 
+#include "backend/dxwindowcapture.h"
+
 #include <QVBoxLayout>
 #include <QScrollArea>
 #include <QElapsedTimer>
@@ -22,6 +24,7 @@
 class Mediator;
 class WindowSelecter;
 class ImageBlender;
+class ProcessOutput;
 
 class Mediator : public QObject
 {
@@ -43,6 +46,9 @@ signals:
 
 private:
     ImageBlender *imgBlender;
+    WindowSelecter *windowSelecter;
+    DXWindowCapture *capture;
+    ProcessOutput *processOutput;
 
     QTimer *captureTimer;
     const int bufferSize = 100;
@@ -65,6 +71,7 @@ class WindowSelecter : public QObject
 {
     Q_OBJECT
 
+public:
     struct WinInfo{
         HWND id;
         QString title;
@@ -78,6 +85,7 @@ public:
     ~WindowSelecter();
 
     void scanAvaliableWindows();
+    QList<WinInfo> getAvaliableList();
 
     //---------STATIC---------//
     static BOOL CALLBACK enumWindowCallback(HWND hwnd, LPARAM lParam);
@@ -118,3 +126,34 @@ private:
 
 };
 
+
+//------------------------------------------------------------------------------//
+//                                                                              //
+//------------------------------------------------------------------------------//
+
+
+class ProcessOutput : public QWidget
+{
+    Q_OBJECT
+
+public:
+    explicit ProcessOutput(QWidget *parent = nullptr);
+    ~ProcessOutput();
+
+    void showResult(const QImage& );
+
+signals:
+    void captureAreaChanged(const QRect&);
+
+public slots:
+    void updatePixmapData(const QPixmap&);
+
+
+
+private:
+    QVBoxLayout *layout = nullptr;
+    QScrollArea *scrollArea = nullptr;
+    QLabel *label = nullptr;
+    QPixmap *pixmap = nullptr;
+
+};

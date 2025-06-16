@@ -3,19 +3,31 @@
 Mediator::Mediator(QObject *parent) : QObject(parent)
 {
     imgBlender = new ImageBlender(this);
+    windowSelecter = new WindowSelecter(this);
+    capture = new DXWindowCapture(this);
+    processOutput = new ProcessOutput();
 
-    captureTimer = new QTimer(this);
-    captureTimer->start(1000);
+    windowSelecter->scanAvaliableWindows();
+    QList<WindowSelecter::WinInfo> avaliableWindows = windowSelecter->getAvaliableList();
+
+    capture->initCapture(avaliableWindows[1].id);
+    capture->startCapture(16);
 
     connect(this, &Mediator::imageDataLoaded, this, [=](){
         QImage result = imgBlender->differenceBlendTrailV4Fast(imageBuffer, threshold);
         imgBlender->showResult(result);
     });
+
+    connect(capture, &DXWindowCapture::screenshotCaptured, processOutput, &ProcessOutput::updatePixmapData);
+    //connect(processOutput, &ProcessOutput::captureAreaChanged, capture, &DXWindowCapture::setCaptureArea);
 }
 
 Mediator::~Mediator()
 {
     delete imgBlender;
+    delete windowSelecter;
+    delete capture;
+    delete processOutput;
 }
 
 void Mediator::loadImagesToBuffer()
@@ -97,6 +109,11 @@ void WindowSelecter::scanAvaliableWindows()
     winList.clear();
     EnumWindows(enumWindowCallback, reinterpret_cast<LPARAM>(&winList));
     //qDebug() << "Avaliable windows: " << winList;
+}
+
+QList<WindowSelecter::WinInfo> WindowSelecter::getAvaliableList()
+{
+    return winList;
 }
 
 BOOL WindowSelecter::enumWindowCallback(HWND hwnd, LPARAM lParam)
@@ -451,5 +468,50 @@ QImage ImageBlender::differenceBlendTrailV4Fast(const QVector<QImage> &images, i
 
     qDebug() << "Время выполнения differenceBlendTrailV4Fast (быстрая серая):" << timer.elapsed() << "мс";
     return result;
+}
+
+//------------------------------------------------------------------------------//
+//                                                                              //
+//------------------------------------------------------------------------------//
+
+
+
+
+ProcessOutput::ProcessOutput(QWidget *parent)
+{
+    setWindowFlags(Qt::Window);
+    setWindowFlags(Qt::WindowStaysOnTopHint);
+
+    QVBoxLayout *layout = new QVBoxLayout(this);
+
+    scrollArea = new QScrollArea();
+    label = new QLabel();
+    pixmap = new QPixmap();
+
+    label->setPixmap(*pixmap);
+    label->setScaledContents(true); // Позволяет динамически изменять размер изображения
+    scrollArea->setWidget(label);
+    scrollArea->setWidgetResizable(true); // Позволяет изменять размер изображения внутри окна
+
+    layout->addWidget(scrollArea);
+    setLayout(layout);
+    resize(800, 600); // Размер по умолчанию
+    show();
+}
+
+ProcessOutput::~ProcessOutput()
+{
+
+}
+
+void ProcessOutput::showResult(const QImage &result)
+{
+
+}
+
+void ProcessOutput::updatePixmapData(const QPixmap &pixmapNew)
+{
+    *pixmap = pixmapNew;
+    label->setPixmap(*pixmap);
 }
 

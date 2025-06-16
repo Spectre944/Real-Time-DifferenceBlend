@@ -1,7 +1,7 @@
 #include "ui/mainwindow.h"
 #include "./ui_mainwindow.h"
 
-#include <backend/mediator.h>
+
 
 
 MainWindow::MainWindow(QWidget *parent)
@@ -11,9 +11,8 @@ MainWindow::MainWindow(QWidget *parent)
     ui->setupUi(this);
 
     Mediator *md = new Mediator(this);
-    WindowSelecter *ws = new WindowSelecter(this);
 
-    ws->scanAvaliableWindows();
+
 
     connect(ui->actionLoad, &QAction::triggered, md, QOverload<>::of(&Mediator::loadImagesToBuffer));
     connect(ui->labelDropArea, &DropArea::dropAreaFileReviced, md, QOverload<const QList<QUrl>&>::of(&Mediator::loadImagesToBuffer));

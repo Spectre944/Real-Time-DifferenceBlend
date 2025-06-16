@@ -18,7 +18,7 @@ Mediator::Mediator(QObject *parent) : QObject(parent)
         imgBlender->showResult(result);
     });
 
-    connect(capture, &DXWindowCapture::screenshotCaptured, processOutput, &ProcessOutput::updatePixmapData);
+    connect(capture, &DXWindowCapture::screenshotCaptured, processOutput, &ProcessOutput::updateImageData);
     //connect(processOutput, &ProcessOutput::captureAreaChanged, capture, &DXWindowCapture::setCaptureArea);
 }
 
@@ -509,9 +509,9 @@ void ProcessOutput::showResult(const QImage &result)
 
 }
 
-void ProcessOutput::updatePixmapData(const QPixmap &pixmapNew)
+void ProcessOutput::updateImageData(const QImage &imageNew)
 {
-    *pixmap = pixmapNew;
+    *pixmap = QPixmap::fromImage(imageNew);
     label->setPixmap(*pixmap);
 }
 

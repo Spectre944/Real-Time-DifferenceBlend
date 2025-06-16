@@ -35,10 +35,10 @@ public:
     // Получение информации
     QRect getWindowRect() const;
     bool isCapturing() const { return m_timer->isActive(); }
-    QPixmap getLastScreenshot() const { return m_lastScreenshot; }
+    QImage getLastScreenshot() const { return m_lastScreenshot; }
 
 signals:
-    void screenshotCaptured(const QPixmap& screenshot);
+    void screenshotCaptured(const QImage& screenshot);
     void imageReady(const QImage& image);
     void captureError(const QString& error);
 
@@ -55,13 +55,14 @@ private:
     void cleanup();
 
     // Методы захвата
-    QPixmap captureWindow();
-    QPixmap captureWithDWM();
-    QPixmap captureWithBitBlt();
-    QPixmap captureWithDXGI();
+    QImage captureWindow();
+    QImage captureWithDWM();
+    QImage captureWithBitBlt();
+    QImage captureWithDXGI();
 
     // Утилиты
     QPixmap convertToQPixmap(HBITMAP hBitmap, int width, int height);
+    QImage convertToQImage(HBITMAP hBitmap, int width, int height);
     bool isWindowValid() const;
 
 private:
@@ -69,7 +70,7 @@ private:
     QTimer* m_timer;
     QRect m_captureArea;
     bool m_useCustomArea;
-    QPixmap m_lastScreenshot;
+    QImage m_lastScreenshot;
 
     // DirectX объекты
     ID3D11Device* m_d3dDevice;

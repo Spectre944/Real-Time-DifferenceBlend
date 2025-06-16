@@ -146,7 +146,7 @@ signals:
     void captureAreaChanged(const QRect&);
 
 public slots:
-    void updatePixmapData(const QPixmap&);
+    void updateImageData(const QImage&);
 
 
 

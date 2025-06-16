@@ -159,7 +159,7 @@ void DXWindowCapture::captureScreenshot()
         return;
     }
 
-    QPixmap screenshot = captureWindow();
+    QImage screenshot = captureWindow();
 
     if (!screenshot.isNull()) {
         m_lastScreenshot = screenshot;
@@ -169,10 +169,10 @@ void DXWindowCapture::captureScreenshot()
     }
 }
 
-QPixmap DXWindowCapture::captureWindow()
+QImage DXWindowCapture::captureWindow()
 {
     // Пробуем методы в порядке приоритета
-    QPixmap result;
+    QImage result;
 
     // 1. DXGI (лучший для DirectX приложений)
     if (m_dxgiSupported) {
@@ -192,10 +192,10 @@ QPixmap DXWindowCapture::captureWindow()
     return result;
 }
 
-QPixmap DXWindowCapture::captureWithDXGI()
+QImage DXWindowCapture::captureWithDXGI()
 {
     if (!m_dxgiDuplication) {
-        return QPixmap();
+        return QImage();
     }
 
     IDXGIResource* dxgiResource = nullptr;
@@ -203,7 +203,7 @@ QPixmap DXWindowCapture::captureWithDXGI()
 
     HRESULT hr = m_dxgiDuplication->AcquireNextFrame(1000, &frameInfo, &dxgiResource);
     if (FAILED(hr)) {
-        return QPixmap();
+        return QImage();
     }
 
     ID3D11Texture2D* texture = nullptr;
@@ -212,7 +212,7 @@ QPixmap DXWindowCapture::captureWithDXGI()
 
     if (FAILED(hr)) {
         m_dxgiDuplication->ReleaseFrame();
-        return QPixmap();
+        return QImage();
     }
 
     // Создаем staging текстуру для чтения
@@ -232,7 +232,7 @@ QPixmap DXWindowCapture::captureWithDXGI()
     if (FAILED(hr)) {
         texture->Release();
         m_dxgiDuplication->ReleaseFrame();
-        return QPixmap();
+        return QImage();
     }
 
     // Копируем данные
@@ -242,14 +242,14 @@ QPixmap DXWindowCapture::captureWithDXGI()
     D3D11_MAPPED_SUBRESOURCE mappedResource;
     hr = m_d3dContext->Map(m_stagingTexture, 0, D3D11_MAP_READ, 0, &mappedResource);
 
-    QPixmap result;
+    QImage result;
     if (SUCCEEDED(hr)) {
         // Преобразуем в QPixmap
         QImage image((uchar*)mappedResource.pData,
                      textureDesc.Width, textureDesc.Height,
                      mappedResource.RowPitch, QImage::Format_ARGB32);
 
-        result = QPixmap::fromImage(image);
+        result = image;
 
         m_d3dContext->Unmap(m_stagingTexture, 0);
     }
@@ -260,11 +260,11 @@ QPixmap DXWindowCapture::captureWithDXGI()
     return result;
 }
 
-QPixmap DXWindowCapture::captureWithDWM()
+QImage DXWindowCapture::captureWithDWM()
 {
     RECT windowRect;
     if (!GetWindowRect(m_targetWindow, &windowRect)) {
-        return QPixmap();
+        return QImage();
     }
 
     int width = windowRect.right - windowRect.left;
@@ -279,19 +279,19 @@ QPixmap DXWindowCapture::captureWithDWM()
     // Используем PrintWindow для захвата
     BOOL result = PrintWindow(m_targetWindow, hdcMemDC, PW_RENDERFULLCONTENT);
 
-    QPixmap pixmap;
+    QImage resultImage;
     if (result) {
-        pixmap = convertToQPixmap(hbmScreen, width, height);
+        resultImage = convertToQImage(hbmScreen, width, height);
     }
 
     DeleteObject(hbmScreen);
     DeleteDC(hdcMemDC);
     ReleaseDC(m_targetWindow, hdcWindow);
 
-    return pixmap;
+    return resultImage;
 }
 
-QPixmap DXWindowCapture::captureWithBitBlt()
+QImage DXWindowCapture::captureWithBitBlt()
 {
     HDC hdcWindow = GetDC(m_targetWindow);
     HDC hdcMemDC = CreateCompatibleDC(hdcWindow);
@@ -307,13 +307,13 @@ QPixmap DXWindowCapture::captureWithBitBlt()
 
     BitBlt(hdcMemDC, 0, 0, width, height, hdcWindow, 0, 0, SRCCOPY);
 
-    QPixmap pixmap = convertToQPixmap(hbmScreen, width, height);
+    QImage imgae = convertToQImage(hbmScreen, width, height);
 
     DeleteObject(hbmScreen);
     DeleteDC(hdcMemDC);
     ReleaseDC(m_targetWindow, hdcWindow);
 
-    return pixmap;
+    return imgae;
 }
 
 QPixmap DXWindowCapture::convertToQPixmap(HBITMAP hBitmap, int width, int height)
@@ -345,6 +345,35 @@ QPixmap DXWindowCapture::convertToQPixmap(HBITMAP hBitmap, int width, int height
     }
 
     return pixmap;
+}
+
+QImage DXWindowCapture::convertToQImage(HBITMAP hBitmap, int width, int height)
+{
+    BITMAPINFO bmi;
+    memset(&bmi, 0, sizeof(bmi));
+    bmi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+    bmi.bmiHeader.biWidth = width;
+    bmi.bmiHeader.biHeight = -height; // Отрицательная высота для правильной ориентации
+    bmi.bmiHeader.biPlanes = 1;
+    bmi.bmiHeader.biBitCount = 32;
+    bmi.bmiHeader.biCompression = BI_RGB;
+
+    QImage image(width, height, QImage::Format_ARGB32);
+
+    HDC hdc = CreateCompatibleDC(nullptr);
+    int result = GetDIBits(hdc, hBitmap, 0, height, image.bits(), &bmi, DIB_RGB_COLORS);
+    DeleteDC(hdc);
+
+    if (result == 0) {
+        return QImage();
+    }
+
+    // Применяем область захвата если установлена
+    if (m_useCustomArea && !m_captureArea.isNull()) {
+        image = image.copy(m_captureArea);
+    }
+
+    return image;
 }
 
 bool DXWindowCapture::isWindowValid() const
